@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@android:id/background">
+        <shape android:shape="rectangle">
+            <corners android:radius="8dp" />
+            <solid android:color="#23232C" />
+        </shape>
+    </item>
+    <item android:id="@android:id/progress">
+        <clip>
+            <shape android:shape="rectangle">
+                <corners android:radius="8dp" />
+                <!-- Green through amber: the colour itself says how much of the budget is gone. -->
+                <gradient
+                    android:angle="0"
+                    android:startColor="#3FCF7F"
+                    android:centerColor="#9BD65B"
+                    android:endColor="#FFB86B" />
+            </shape>
+        </clip>
+    </item>
+</layer-list>

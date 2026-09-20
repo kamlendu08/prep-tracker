@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Home-screen widget. Deliberately two figures and two bars: the point is that the first thing you
+  see on unlocking the phone is how far into the day's target you are and how much of the budget
+  is left — not a dashboard in miniature.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center_vertical"
+    android:background="@drawable/widget_background"
+    android:paddingStart="18dp"
+    android:paddingEnd="18dp"
+    android:paddingTop="14dp"
+    android:paddingBottom="14dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#8E8E99"
+        android:textSize="10sp"
+        android:letterSpacing="0.14"
+        android:text="STUDIED TODAY" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="2dp"
+        android:baselineAligned="true">
+
+        <TextView
+            android:id="@+id/study_value"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="#F2F2F5"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text="0m" />
+
+        <TextView
+            android:id="@+id/study_remaining"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#9AA0A6"
+            android:textSize="13sp"
+            android:maxLines="1"
+            android:text="8h to go" />
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/study_bar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="14dp"
+        android:minHeight="14dp"
+        android:maxHeight="14dp"
+        android:layout_marginTop="8dp"
+        android:max="100"
+        android:progress="0"
+        android:progressDrawable="@drawable/widget_bar_study" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
+        android:textColor="#8E8E99"
+        android:textSize="10sp"
+        android:letterSpacing="0.14"
+        android:text="SPENT TODAY" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="2dp"
+        android:baselineAligned="true">
+
+        <TextView
+            android:id="@+id/spend_value"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="#F2F2F5"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text="₹0" />
+
+        <TextView
+            android:id="@+id/spend_remaining"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#9AA0A6"
+            android:textSize="13sp"
+            android:maxLines="1"
+            android:text="₹200 left" />
+    </LinearLayout>
+
+    <!--
+      Two bars rather than one recoloured bar: RemoteViews cannot swap a progress drawable at
+      runtime, so the over-budget version is a second view and only one of the pair is ever shown.
+    -->
+    <ProgressBar
+        android:id="@+id/spend_bar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="14dp"
+        android:minHeight="14dp"
+        android:maxHeight="14dp"
+        android:layout_marginTop="8dp"
+        android:max="100"
+        android:progress="0"
+        android:progressDrawable="@drawable/widget_bar_spend" />
+
+    <ProgressBar
+        android:id="@+id/spend_bar_over"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="14dp"
+        android:minHeight="14dp"
+        android:maxHeight="14dp"
+        android:layout_marginTop="8dp"
+        android:max="100"
+        android:progress="100"
+        android:visibility="gone"
+        android:progressDrawable="@drawable/widget_bar_over" />
+</LinearLayout>

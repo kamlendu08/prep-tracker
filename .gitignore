@@ -1,0 +1,17 @@
+# Gradle / build output
+.gradle/
+build/
+app/build/
+/captures
+.externalNativeBuild
+.cxx
+
+# Local machine config — SDK path, never the same on two machines
+local.properties
+
+# IDE
+*.iml
+/.idea/
+
+# macOS
+.DS_Store
