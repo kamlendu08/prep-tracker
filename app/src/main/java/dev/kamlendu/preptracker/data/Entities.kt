@@ -124,3 +124,25 @@ fun dayKeyOf(epochMillis: Long, zone: ZoneId = ZoneId.systemDefault()): String =
     Instant.ofEpochMilli(epochMillis).atZone(zone).toLocalDate().toString()
 
 fun todayKey(zone: ZoneId = ZoneId.systemDefault()): String = LocalDate.now(zone).toString()
+
+/**
+ * The candidate's own note on one revision card — "always forget the 1/2 here", "did this wrong
+ * in the 2019 paper".
+ *
+ * The card's slug path (`subject/topic/card`) *is* the identity, on the phone and on the server
+ * alike: revision content ships with the app rather than living in a table, so there is no row to
+ * point a foreign key at, and a note written here has to land on the same card on the website.
+ */
+@Entity(
+    tableName = "revision_remarks",
+    indices = [Index(value = ["cardId"], unique = true)],
+)
+data class RevisionRemark(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val cardId: String,
+    val text: String,
+    /** Tombstone. Clearing a note has to reach the other device, not just vanish here. */
+    val deleted: Boolean = false,
+    val updatedAt: Long = System.currentTimeMillis(),
+    val pendingSync: Boolean = true,
+)

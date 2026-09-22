@@ -55,10 +55,29 @@ object SyncApi {
         val updatedAt: Long,
     )
 
+    /**
+     * A note on a revision card. The card's slug path is the id on both sides, so the same note
+     * written on the website and on the phone is one row rather than two.
+     */
+    data class Remark(
+        val cardId: String,
+        val text: String,
+        val deleted: Boolean,
+        val updatedAt: Long,
+    )
+
     data class SyncResponse(
         val serverTime: Long,
         val sessions: List<Session>,
         val spends: List<Spend>,
+        /**
+         * **null means the server did not send the key at all** — it is older than this app and
+         * knows nothing about revision remarks. That is not the same as an empty list, and the
+         * difference matters: an unknown key is silently dropped on the way in, so the request
+         * still returns 200 and the phone would otherwise mark the note synced and never send it
+         * again. Distinguishing the two is what stops a note being lost during a staged rollout.
+         */
+        val revisionRemarks: List<Remark>?,
     )
 
     data class LoginResponse(val token: String, val userId: String, val email: String, val name: String?)
@@ -102,11 +121,13 @@ object SyncApi {
         since: Long,
         sessions: List<Session>,
         spends: List<Spend>,
+        remarks: List<Remark>,
     ): Result<SyncResponse> = withContext(Dispatchers.IO) {
         val body = JSONObject()
             .put("since", if (since > 0) since else JSONObject.NULL)
             .put("sessions", JSONArray().apply { sessions.forEach { put(it.toJson()) } })
             .put("spends", JSONArray().apply { spends.forEach { put(it.toJson()) } })
+            .put("revisionRemarks", JSONArray().apply { remarks.forEach { put(it.toJson()) } })
 
         when (val response = post("$baseUrl/api/mobile/sync", token, body)) {
             is Result.Failed -> response
@@ -117,6 +138,8 @@ object SyncApi {
                         serverTime = json.optLong("serverTime", System.currentTimeMillis()),
                         sessions = json.getJSONArray("sessions").map { it.toSession() },
                         spends = json.getJSONArray("spends").map { it.toSpend() },
+                        // Kept null when the key is absent — see the field's comment.
+                        revisionRemarks = json.optJSONArray("revisionRemarks")?.map { it.toRemark() },
                     )
                 )
             }
@@ -181,6 +204,19 @@ object SyncApi {
         .put("categoryLocked", categoryLocked)
         .put("deleted", deleted)
         .put("updatedAt", updatedAt)
+
+    private fun Remark.toJson() = JSONObject()
+        .put("cardId", cardId)
+        .put("text", text)
+        .put("deleted", deleted)
+        .put("updatedAt", updatedAt)
+
+    private fun JSONObject.toRemark() = Remark(
+        cardId = getString("cardId"),
+        text = optString("text"),
+        deleted = optBoolean("deleted"),
+        updatedAt = getLong("updatedAt"),
+    )
 
     private fun JSONObject.toSession() = Session(
         uid = getString("id"),

@@ -45,6 +45,13 @@ per-study-day averages, days studied, days on target, current and best streak, t
 previous equal period, the split by activity and category, which weekday you actually study on,
 longest sittings and biggest spends.
 
+**Revise.** Subject → topic → concept cards: the concepts and formulas GATE EC actually asks, with
+the official syllabus scope shown verbatim and each subject's weighting measured from 1,105
+previous-year questions rather than estimated. 10 subjects, 41 topics, 164 cards, 592 formulas —
+the same content as the website's `/revise`, bundled in the APK so it works with no signal. Any
+card takes a **remark**, and that note is the same one the website shows. See
+[docs/revision.md](docs/revision.md).
+
 **Home-screen widget.** Today's study time counting down to the target and today's spend against
 the limit, as thick gradient bars. It includes a sitting *in progress*, refreshed each minute.
 
@@ -107,6 +114,8 @@ app/src/main/java/dev/kamlendu/preptracker/
     ExpenseCapture.kt     The single funnel every captured spend goes through
     SmsReceiver.kt        Live bank SMS
     SmsImporter.kt        Inbox back-fill, re-parse, duplicate sweep
+  revision/
+    RevisionContent.kt    Loads the bundled revision section from assets
   sync/
     AuthStore.kt          Token + account, in DataStore
     SyncApi.kt            The three HTTP calls (login, register, sync)
@@ -114,8 +123,13 @@ app/src/main/java/dev/kamlendu/preptracker/
   ui/
     auth/                 Landing page, sign-in, sign-up
     theme/  components/   Colours, typography, charts drawn on Canvas (no chart library)
+    revise/               Subject/topic lists, and the one WebView that renders a topic
     dashboard/  timer/  expenses/  reports/  settings/
   widget/PrepWidgetProvider.kt
+
+app/src/main/assets/
+  revision/               Generated content — see docs/revision.md, do not edit by hand
+  katex/                  KaTeX stylesheet + woff2 fonts, for the revision WebView
 ```
 
 ---
@@ -216,8 +230,10 @@ Syncs run when the app comes to the foreground, right after a sitting is logged,
 Settings → Account → Sync now. Signing out clears this phone's copy — after a final sync — so one
 account's records are never left behind for the next person who signs in.
 
-Postgres tables: `StudySession` and `SpendEntry`, both keyed to `User`, in the same Neon database as
-the exam platform.
+Postgres tables: `StudySession`, `SpendEntry` and `RevisionRemark`, all keyed to `User`, in the
+same Neon database as the exam platform. Revision remarks are the one kind of row whose id is *not*
+phone-generated: a card's slug path identifies it, so the same note written here and on the website
+is one row.
 
 ---
 

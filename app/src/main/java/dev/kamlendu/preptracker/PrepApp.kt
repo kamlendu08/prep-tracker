@@ -17,6 +17,7 @@ class AppContainer(context: Context) {
     private val db = AppDatabase.get(context)
     val studyDao = db.studyDao()
     val expenseDao = db.expenseDao()
+    val revisionDao = db.revisionDao()
     val settings = SettingsStore(context.applicationContext)
     val auth = AuthStore(context.applicationContext)
 }

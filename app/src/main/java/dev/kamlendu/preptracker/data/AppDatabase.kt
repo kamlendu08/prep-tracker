@@ -8,13 +8,14 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [StudySession::class, Expense::class],
-    version = 2,
+    entities = [StudySession::class, Expense::class, RevisionRemark::class],
+    version = 3,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun studyDao(): StudyDao
     abstract fun expenseDao(): ExpenseDao
+    abstract fun revisionDao(): RevisionDao
 
     companion object {
         /**
@@ -42,6 +43,25 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** Revision-card remarks. A new table only — nothing existing is touched. */
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS revision_remarks (" +
+                        "id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, " +
+                        "cardId TEXT NOT NULL, " +
+                        "text TEXT NOT NULL, " +
+                        "deleted INTEGER NOT NULL DEFAULT 0, " +
+                        "updatedAt INTEGER NOT NULL DEFAULT 0, " +
+                        "pendingSync INTEGER NOT NULL DEFAULT 1)"
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS index_revision_remarks_cardId " +
+                        "ON revision_remarks(cardId)"
+                )
+            }
+        }
+
         @Volatile
         private var instance: AppDatabase? = null
 
@@ -51,7 +71,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "prep-tracker.db",
-                ).addMigrations(MIGRATION_1_2).build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { instance = it }
             }
     }
 }

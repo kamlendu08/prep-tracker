@@ -39,6 +39,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         SyncEngine.syncNow(getApplication())
         container.studyDao.clearAll()
         container.expenseDao.clearAll()
+        container.revisionDao.clearAll()
         container.auth.signOut()
         WidgetUpdater.refresh(getApplication())
     }

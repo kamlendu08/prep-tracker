@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CurrencyRupee
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SpaceDashboard
 import androidx.compose.material.icons.filled.Timer
@@ -41,6 +42,7 @@ import dev.kamlendu.preptracker.ui.dashboard.DashboardScreen
 import dev.kamlendu.preptracker.ui.auth.AuthFlow
 import dev.kamlendu.preptracker.ui.expenses.MoneyScreen
 import dev.kamlendu.preptracker.ui.reports.ReportsScreen
+import dev.kamlendu.preptracker.ui.revise.ReviseScreen
 import dev.kamlendu.preptracker.ui.settings.SettingsScreen
 import dev.kamlendu.preptracker.ui.theme.PrepTrackerTheme
 import dev.kamlendu.preptracker.ui.timer.TimerScreen
@@ -48,6 +50,7 @@ import dev.kamlendu.preptracker.ui.timer.TimerScreen
 private enum class Tab(val label: String, val icon: ImageVector) {
     DASHBOARD("Today", Icons.Filled.SpaceDashboard),
     TIMER("Timer", Icons.Filled.Timer),
+    REVISE("Revise", Icons.Filled.MenuBook),
     MONEY("Money", Icons.Filled.CurrencyRupee),
     REPORTS("Reports", Icons.Filled.BarChart),
     SETTINGS("Settings", Icons.Filled.Settings),
@@ -128,6 +131,7 @@ private fun AppScaffold() {
                     contentPadding = padding,
                 )
                 Tab.TIMER -> TimerScreen(contentPadding = padding)
+                Tab.REVISE -> ReviseScreen(contentPadding = padding)
                 Tab.MONEY -> MoneyScreen(contentPadding = padding)
                 Tab.REPORTS -> ReportsScreen(contentPadding = padding)
                 Tab.SETTINGS -> SettingsScreen(contentPadding = padding)

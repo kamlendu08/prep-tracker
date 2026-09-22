@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import dev.kamlendu.preptracker.appContainer
 import dev.kamlendu.preptracker.data.Expense
+import dev.kamlendu.preptracker.data.RevisionRemark
 import dev.kamlendu.preptracker.data.StudySession
 import dev.kamlendu.preptracker.widget.WidgetUpdater
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,6 +56,7 @@ object SyncEngine {
 
             val sessions = container.studyDao.pendingSync(BATCH)
             val spends = container.expenseDao.pendingSync(BATCH)
+            val remarks = container.revisionDao.pendingSync(BATCH)
 
             val response = SyncApi.sync(
                 baseUrl = SyncApi.DEFAULT_BASE_URL,
@@ -62,6 +64,7 @@ object SyncEngine {
                 since = account.lastSyncAt,
                 sessions = sessions.map { it.toApi() },
                 spends = spends.map { it.toApi() },
+                remarks = remarks.map { it.toApi() },
             )
 
             when (response) {
@@ -85,12 +88,27 @@ object SyncEngine {
                         spends.map { it.uid },
                         spends.maxOfOrNull { it.updatedAt } ?: 0L,
                     )
+                    // Only when the server proved it understands them. A deployment older than
+                    // this app drops the field without complaint and still answers 200; clearing
+                    // the pending flag on that would lose the note for good.
+                    if (value.revisionRemarks != null) {
+                        container.revisionDao.markSynced(
+                            remarks.map { it.cardId },
+                            remarks.maxOfOrNull { it.updatedAt } ?: 0L,
+                        )
+                    } else if (remarks.isNotEmpty()) {
+                        Log.w(TAG, "server has no revision-remark support; keeping ${remarks.size} pending")
+                    }
 
                     val pulled = applyServerRows(context, value)
                     container.auth.setLastSync(value.serverTime)
                     if (pulled > 0) WidgetUpdater.refresh(app)
 
-                    _state.value = State.Done(value.serverTime, sessions.size + spends.size, pulled)
+                    _state.value = State.Done(
+                        value.serverTime,
+                        sessions.size + spends.size + remarks.size,
+                        pulled,
+                    )
                     true
                 }
             }
@@ -148,6 +166,21 @@ object SyncEngine {
             )
             applied++
         }
+        for (remote in response.revisionRemarks.orEmpty()) {
+            val local = container.revisionDao.byCard(remote.cardId)
+            if (local != null && local.updatedAt >= remote.updatedAt) continue
+            container.revisionDao.upsert(
+                RevisionRemark(
+                    id = local?.id ?: 0,
+                    cardId = remote.cardId,
+                    text = remote.text,
+                    deleted = remote.deleted,
+                    updatedAt = remote.updatedAt,
+                    pendingSync = false,
+                )
+            )
+            applied++
+        }
         return applied
     }
 
@@ -160,6 +193,13 @@ object SyncEngine {
         durationMs = durationMs,
         manual = manual,
         note = note,
+        deleted = deleted,
+        updatedAt = updatedAt,
+    )
+
+    private fun RevisionRemark.toApi() = SyncApi.Remark(
+        cardId = cardId,
+        text = text,
         deleted = deleted,
         updatedAt = updatedAt,
     )

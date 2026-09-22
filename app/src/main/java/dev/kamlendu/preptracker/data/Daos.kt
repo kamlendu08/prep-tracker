@@ -236,3 +236,25 @@ interface ExpenseDao {
         now: Long = System.currentTimeMillis(),
     )
 }
+
+@Dao
+interface RevisionDao {
+    /** Every live note, for the card list's "has a remark" dots and the topic screen. */
+    @Query("SELECT * FROM revision_remarks WHERE deleted = 0")
+    fun liveRemarks(): Flow<List<RevisionRemark>>
+
+    @Query("SELECT * FROM revision_remarks WHERE cardId = :cardId")
+    suspend fun byCard(cardId: String): RevisionRemark?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(remark: RevisionRemark)
+
+    @Query("SELECT * FROM revision_remarks WHERE pendingSync = 1 LIMIT :limit")
+    suspend fun pendingSync(limit: Int): List<RevisionRemark>
+
+    @Query("UPDATE revision_remarks SET pendingSync = 0 WHERE cardId IN (:cardIds) AND updatedAt <= :upTo")
+    suspend fun markSynced(cardIds: List<String>, upTo: Long)
+
+    @Query("DELETE FROM revision_remarks")
+    suspend fun clearAll()
+}
