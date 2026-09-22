@@ -17,6 +17,36 @@ val TimerGrey = Color(0xFF8C8C8C)
 val TimerGreyDimmed = Color(0xFF565656)
 val TimerGreyDim = Color(0xFF4A4A4A)
 
+/**
+ * Colour of the stopwatch digits, chosen in Settings.
+ *
+ * Each palette keeps the grey one's three steps and, more importantly, its *relative*
+ * brightness: the dimmed shade is about 61% of the bright one and the paused shade about 53%.
+ * That ratio is what makes "Dim the clock" read as the same clock turned down rather than as a
+ * different colour, and it is why none of these is a fully saturated hue at full brightness —
+ * on an OLED panel at a desk at 3am, that glares exactly the way white does.
+ */
+enum class TimerPalette(
+    val label: String,
+    /** Running, at full brightness. */
+    val bright: Color,
+    /** Running with "Dim the clock" on. */
+    val dimmed: Color,
+    /** Paused, and the labels and outlines that sit around the face. */
+    val paused: Color,
+) {
+    Grey("Grey", TimerGrey, TimerGreyDimmed, TimerGreyDim),
+    NeonGreen("Neon", Color(0xFF39FF88), Color(0xFF239C53), Color(0xFF1E8748)),
+    Aqua("Aqua", Color(0xFF35E7FF), Color(0xFF208D9C), Color(0xFF1C7A87)),
+    Amber("Amber", Color(0xFFFFB53D), Color(0xFF9C6E25), Color(0xFF876020)),
+    Violet("Violet", Color(0xFFC58CFF), Color(0xFF78559C), Color(0xFF684A87));
+
+    companion object {
+        /** Falls back to Grey for an unknown stored name, so an old value can never crash startup. */
+        fun from(name: String?): TimerPalette = entries.firstOrNull { it.name == name } ?: Grey
+    }
+}
+
 val AccentStudy = Color(0xFF7AC0FF)
 val AccentSpend = Color(0xFFFFB86B)
 val AccentOver = Color(0xFFFF6B6B)

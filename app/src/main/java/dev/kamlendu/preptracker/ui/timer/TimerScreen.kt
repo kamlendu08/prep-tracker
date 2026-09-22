@@ -90,9 +90,7 @@ import dev.kamlendu.preptracker.timer.formatDuration
 import dev.kamlendu.preptracker.timer.formatHoursMinutes
 import dev.kamlendu.preptracker.ui.theme.ActivityColors
 import dev.kamlendu.preptracker.ui.timeOfDay
-import dev.kamlendu.preptracker.ui.theme.TimerGrey
-import dev.kamlendu.preptracker.ui.theme.TimerGreyDim
-import dev.kamlendu.preptracker.ui.theme.TimerGreyDimmed
+import dev.kamlendu.preptracker.ui.theme.TimerPalette
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -436,6 +434,9 @@ private fun StopwatchFace(
     val context = LocalContext.current
     val state by TimerEngine.state.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    // The whole face takes its colour from one palette, so the digits, the paused label and the
+    // Stop button's outline can never drift apart.
+    val palette = TimerPalette.from(settings.timerPalette)
     var elapsed by remember { mutableLongStateOf(state.displayMs()) }
 
     // Render on a tick, but read the value from the clock — never accumulate the tick itself.
@@ -479,7 +480,7 @@ private fun StopwatchFace(
         ) {
             Text(
                 state.activity?.label?.uppercase() ?: "",
-                color = TimerGreyDim,
+                color = palette.paused,
                 fontSize = 13.sp,
                 letterSpacing = 3.sp,
             )
@@ -488,9 +489,9 @@ private fun StopwatchFace(
         GiantDigits(
             text = text,
             color = when {
-                !state.running -> TimerGreyDim
-                settings.dimScreen -> TimerGreyDimmed
-                else -> TimerGrey
+                !state.running -> palette.paused
+                settings.dimScreen -> palette.dimmed
+                else -> palette.bright
             },
             // Room for the controls only once they are actually on screen, so a running clock
             // gets the whole canvas.
@@ -518,7 +519,7 @@ private fun StopwatchFace(
                     } else {
                         "PAUSED — TAP ANYWHERE TO RESUME"
                     },
-                    color = TimerGreyDim,
+                    color = palette.paused,
                     fontSize = 12.sp,
                     letterSpacing = 2.sp,
                     textAlign = TextAlign.Center,
@@ -528,15 +529,15 @@ private fun StopwatchFace(
                 OutlinedButton(
                     onClick = { TimerService.stop(context) },
                     shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, TimerGreyDim),
+                    border = BorderStroke(1.dp, palette.paused),
                 ) {
-                    Text("Stop & log", color = TimerGrey)
+                    Text("Stop & log", color = palette.bright)
                 }
             }
         }
 
         // A single hint on the first few seconds of a sitting, then out of the way for good.
-        FirstRunHint(running = state.running, elapsed = elapsed)
+        FirstRunHint(running = state.running, elapsed = elapsed, hintColor = palette.paused)
     }
 }
 
@@ -622,7 +623,7 @@ private val CLOCK_FAMILY = FontFamily.Default
 private val CLOCK_PLATFORM_STYLE = PlatformTextStyle(includeFontPadding = false)
 
 @Composable
-private fun BoxScope.FirstRunHint(running: Boolean, elapsed: Long) {
+private fun BoxScope.FirstRunHint(running: Boolean, elapsed: Long, hintColor: Color) {
     AnimatedVisibility(
         visible = running && elapsed < 6_000,
         enter = fadeIn(),
@@ -633,7 +634,7 @@ private fun BoxScope.FirstRunHint(running: Boolean, elapsed: Long) {
     ) {
         Text(
             "TAP ANYWHERE TO PAUSE",
-            color = TimerGreyDim,
+            color = hintColor,
             fontSize = 11.sp,
             letterSpacing = 2.sp,
         )

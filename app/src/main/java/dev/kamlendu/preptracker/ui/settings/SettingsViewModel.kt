@@ -12,6 +12,7 @@ import dev.kamlendu.preptracker.widget.WidgetUpdater
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import dev.kamlendu.preptracker.ui.theme.TimerPalette
 
 class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -60,6 +61,8 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     fun setKeepScreenOn(on: Boolean) = viewModelScope.launch { container.settings.setKeepScreenOn(on) }
     fun setDimScreen(on: Boolean) = viewModelScope.launch { container.settings.setDimScreen(on) }
     fun setAutoCapture(on: Boolean) = viewModelScope.launch { container.settings.setAutoCapture(on) }
+    fun setTimerPalette(palette: TimerPalette) =
+        viewModelScope.launch { container.settings.setTimerPalette(palette.name) }
 
     suspend fun backfillFromSms(): SmsImporter.Result =
         SmsImporter.importLastMonth(getApplication())

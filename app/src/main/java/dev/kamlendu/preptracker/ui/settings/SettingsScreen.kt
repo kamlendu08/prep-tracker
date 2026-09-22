@@ -6,15 +6,18 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,9 +39,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -48,6 +54,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.kamlendu.preptracker.sync.SyncEngine
 import dev.kamlendu.preptracker.timer.FocusMode
 import dev.kamlendu.preptracker.ui.components.SectionCard
+import dev.kamlendu.preptracker.ui.theme.TimerPalette
 import dev.kamlendu.preptracker.ui.formatRupees
 import dev.kamlendu.preptracker.ui.theme.AccentOk
 import dev.kamlendu.preptracker.ui.theme.AccentOver
@@ -232,6 +239,11 @@ fun SettingsScreen(
                     onChange = viewModel::setKeepScreenOn,
                 )
                 Spacer(Modifier.height(12.dp))
+                ClockColourRow(
+                    selected = TimerPalette.from(settings.timerPalette),
+                    onSelect = viewModel::setTimerPalette,
+                )
+                Spacer(Modifier.height(12.dp))
                 ToggleRow(
                     title = "Dim the clock",
                     subtitle = "The backlight is what drains the battery on a screen held awake for " +
@@ -386,6 +398,67 @@ fun SettingsScreen(
             onDismiss = { editingLimit = false },
             onSave = { viewModel.setDailyLimit(it); editingLimit = false },
         )
+    }
+}
+
+
+/**
+ * Colour of the stopwatch digits. Each swatch is drawn in the palette's own bright shade over
+ * black, which is the only honest preview — the clock is a full-bleed black screen, and a colour
+ * that looks right on a settings card can glare on it.
+ */
+@Composable
+private fun ClockColourRow(selected: TimerPalette, onSelect: (TimerPalette) -> Unit) {
+    Column {
+        Text("Clock colour", style = MaterialTheme.typography.titleSmall)
+        Spacer(Modifier.height(2.dp))
+        Text(
+            "The digits on the stopwatch face. Dimming keeps working on whichever you pick.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TimerPalette.entries.forEach { palette ->
+                val isSelected = palette == selected
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onSelect(palette) }
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.Black)
+                            .border(
+                                width = if (isSelected) 2.dp else 1.dp,
+                                color = if (isSelected) palette.bright
+                                else MaterialTheme.colorScheme.outlineVariant,
+                                shape = RoundedCornerShape(12.dp),
+                            ),
+                    ) {
+                        Text(
+                            "88",
+                            color = palette.bright,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 17.sp,
+                        )
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        palette.label,
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        color = if (isSelected) MaterialTheme.colorScheme.onSurface
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
     }
 }
 

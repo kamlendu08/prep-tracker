@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -26,6 +27,12 @@ data class AppSettings(
      * overall budget is set, and the dashboard leaves it out rather than showing an empty bar.
      */
     val totalBudgetPaise: Long = 0L,
+    /**
+     * Name of the [dev.kamlendu.preptracker.ui.theme.TimerPalette] the stopwatch digits use.
+     * Stored as the enum name rather than an index so reordering the list can never silently
+     * repaint someone's clock.
+     */
+    val timerPalette: String = "Grey",
 )
 
 class SettingsStore(private val context: Context) {
@@ -37,6 +44,7 @@ class SettingsStore(private val context: Context) {
         val DIM_SCREEN = booleanPreferencesKey("dim_screen")
         val DAILY_TARGET = intPreferencesKey("daily_target_minutes")
         val TOTAL_BUDGET = longPreferencesKey("total_budget_paise")
+        val TIMER_PALETTE = stringPreferencesKey("timer_palette")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -48,6 +56,7 @@ class SettingsStore(private val context: Context) {
             dimScreen = p[Keys.DIM_SCREEN] ?: true,
             dailyTargetMinutes = p[Keys.DAILY_TARGET] ?: 480,
             totalBudgetPaise = p[Keys.TOTAL_BUDGET] ?: 0L,
+            timerPalette = p[Keys.TIMER_PALETTE] ?: "Grey",
         )
     }
 
@@ -58,6 +67,7 @@ class SettingsStore(private val context: Context) {
     suspend fun setDimScreen(on: Boolean) = edit { it[Keys.DIM_SCREEN] = on }
     suspend fun setDailyTarget(minutes: Int) = edit { it[Keys.DAILY_TARGET] = minutes.coerceIn(0, 24 * 60) }
     suspend fun setTotalBudget(paise: Long) = edit { it[Keys.TOTAL_BUDGET] = paise.coerceAtLeast(0) }
+    suspend fun setTimerPalette(name: String) = edit { it[Keys.TIMER_PALETTE] = name }
 
     private suspend fun edit(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
         context.dataStore.edit(block)

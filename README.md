@@ -14,7 +14,12 @@ This file is the handover document: it should be enough to pick the project up c
 ## 1. What it does
 
 **Study timer.** Pick what the sitting is for — Lecture, Practice or Test — and the screen becomes
-a full-bleed black stopwatch with grey digits, in the style of the Giant Stopwatch app. Tap
+a full-bleed black stopwatch in the style of the Giant Stopwatch app. The digits are grey by
+default; Settings → *Clock colour* swaps them for neon green, aqua, amber or violet. Each palette
+keeps the grey one's three steps and its relative brightness — the dimmed shade is about 61% of the
+bright one, the paused shade about 53% — so "Dim the clock" reads as the same clock turned down
+rather than a different colour, and none of them is a fully saturated hue at full brightness,
+which on an OLED panel at a desk at 3am glares exactly the way white does. Tap
 anywhere to pause, tap again to resume, "Stop & log" banks it against today.
 
 The clock **pauses itself whenever you stop looking at it**: home button, another app, another tab,
