@@ -9,6 +9,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.viewinterop.AndroidView
 import dev.kamlendu.preptracker.revision.Card
@@ -121,6 +122,10 @@ private fun buildHtml(
     remarks: Map<String, String>,
     p: PagePalette,
 ): String {
+    // The formula panel's tint, flattened to one solid colour so the scroll shadows above have
+    // something opaque to fade into.
+    val formulaBg = lerp(p.surface, p.accent, 0.08f)
+
     val cards = topic.cards.joinToString("") { card ->
         cardHtml(RevisionContent.cardId(subjectSlug, topic.slug, card.slug), card, remarks)
     }
@@ -150,13 +155,30 @@ private fun buildHtml(
   .body { color: ${p.onSurface.rgba(0.88)}; }
   ul.f { list-style: none; margin: 12px 0 0; padding: 0; }
   ul.f li {
-    border-left: 2px solid ${p.accent.css()}; background: ${p.accent.rgba(0.08)};
+    border-left: 2px solid ${p.accent.css()}; background: ${formulaBg.css()};
     border-radius: 10px; padding: 8px 12px; margin-top: 8px;
   }
-  .disp { overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+  /* A formula too wide for the screen scrolls sideways. Left to itself that is invisible — the
+     expression just ends mid-symbol and looks like a bug — so these gradients sit at the edges
+     and show only while there is more to scroll to. The two cover layers scroll with the content
+     and hide the shadow once an edge is reached; the shadows themselves stay put. */
+  .disp {
+    --sb: ${p.surface.css()};
+    overflow-x: auto; overflow-y: hidden; padding: 2px 0;
+    background:
+      linear-gradient(to right, var(--sb) 40%, rgba(0,0,0,0)) left center,
+      linear-gradient(to left, var(--sb) 40%, rgba(0,0,0,0)) right center,
+      radial-gradient(farthest-side at 0 50%, rgba(0,0,0,.40), rgba(0,0,0,0)) left center,
+      radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.40), rgba(0,0,0,0)) right center;
+    background-repeat: no-repeat;
+    background-size: 26px 100%, 26px 100%, 13px 100%, 13px 100%;
+    background-attachment: local, local, scroll, scroll;
+  }
+  ul.f li .disp { --sb: ${formulaBg.css()}; }
   .katex-display { margin: 0; text-align: left; }
   .katex-display > .katex { text-align: left; }
-  .katex { font-size: 1.02em; }
+  /* Slightly under 1em: it keeps a few more of the longer expressions inside the screen. */
+  .katex { font-size: 0.97em; }
   .note { color: ${p.onSurfaceVariant.css()}; font-size: 12px; margin-top: 4px; }
   .pit {
     border-left: 2px solid ${p.warn.css()}; background: ${p.warn.rgba(0.10)};
@@ -186,6 +208,29 @@ private fun buildHtml(
 <p class="syl"><b>Syllabus:</b> ${esc(topic.syllabus)}</p>
 $cards
 <script>
+  // A formula wider than the screen is clipped, and a clipped formula is worse than a small one:
+  // it ends mid-symbol and reads as a bug. So anything that overflows is shrunk just enough to
+  // fit, by dropping the container's font size - KaTeX sizes everything in em, so the whole
+  // expression scales and the panel reflows around it. (`zoom` looked simpler and does not work
+  // here: KaTeX's display wrapper is a block that fills its container, so zooming it scales the
+  // container too and the overflow survives.) Below 72% it would be too small to read, and those
+  // are left to scroll sideways instead - the edge shadows show that they can.
+  function fitFormulas() {
+    var boxes = document.querySelectorAll(".disp");
+    for (var i = 0; i < boxes.length; i++) {
+      var box = boxes[i];
+      box.style.fontSize = "";
+      if (box.scrollWidth - box.clientWidth <= 1) continue;
+      var scale = Math.max(box.clientWidth / box.scrollWidth, 0.72);
+      var base = parseFloat(getComputedStyle(box).fontSize);
+      box.style.fontSize = (base * scale * 0.98).toFixed(2) + "px";
+    }
+  }
+  window.addEventListener("load", fitFormulas);
+  window.addEventListener("resize", fitFormulas);
+  // The maths fonts land after first paint and change every width, so measure again once in.
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitFormulas);
+
   function esc(s) {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
