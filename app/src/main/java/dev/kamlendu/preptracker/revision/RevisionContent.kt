@@ -51,6 +51,12 @@ data class Topic(
 
 data class Card(
     val slug: String,
+    /**
+     * How many previous-year questions in the bank were found to use this concept. Zero means it
+     * is on the official syllabus but no past question for it was found — not that it has never
+     * been asked. These sort last and carry a quiet "syllabus" marker.
+     */
+    val pyq: Int,
     /** Plain text — used outside the WebView, where HTML would show as markup. */
     val title: String,
     val titleHtml: String,
@@ -142,6 +148,7 @@ object RevisionContent {
                     cards = t.getJSONArray("cards").map { c ->
                         Card(
                             slug = c.getString("slug"),
+                            pyq = c.optInt("pyq", 0),
                             title = c.optString("title"),
                             titleHtml = c.optString("titleHtml"),
                             bodyHtml = c.optString("bodyHtml"),

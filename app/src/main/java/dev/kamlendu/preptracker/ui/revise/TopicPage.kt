@@ -126,9 +126,15 @@ private fun buildHtml(
     // something opaque to fade into.
     val formulaBg = lerp(p.surface, p.accent, 0.08f)
 
-    val cards = topic.cards.joinToString("") { card ->
-        cardHtml(RevisionContent.cardId(subjectSlug, topic.slug, card.slug), card, remarks)
-    }
+    // The content already arrives examined-first; find where the syllabus-only run begins so the
+    // divider can be dropped in once.
+    val firstExtra = topic.cards.indexOfFirst { it.pyq == 0 }
+    val cards = topic.cards.mapIndexed { i, card ->
+        val divider = if (i == firstExtra && i > 0) {
+            "<p class=\"divider\">Below: on the syllabus, but no past question for it in this bank.</p>"
+        } else ""
+        divider + cardHtml(RevisionContent.cardId(subjectSlug, topic.slug, card.slug), card, remarks)
+    }.joinToString("")
 
     return """
 <!doctype html>
@@ -150,6 +156,14 @@ private fun buildHtml(
     background: ${p.surface.css()}; border-radius: 20px; padding: 16px; margin-bottom: 14px;
   }
   h2 { font-size: 16px; font-weight: 600; margin: 0 0 8px; line-height: 1.4; }
+  .divider { color: ${p.onSurfaceVariant.rgba(0.75)}; font-size: 11px; margin: 18px 2px 10px; }
+  /* Quiet on purpose: it distinguishes, it does not warn. */
+  .tag {
+    display: inline-block; vertical-align: middle; margin-left: 6px;
+    border: 1px solid ${p.outline.css()}; border-radius: 4px; padding: 0 4px;
+    font-size: 9px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+    color: ${p.onSurfaceVariant.rgba(0.8)};
+  }
   h2 p, .body p, .note p, .pit p { margin: 0 0 8px; }
   h2 p:last-child, .body p:last-child, .note p:last-child, .pit p:last-child { margin-bottom: 0; }
   .body { color: ${p.onSurface.rgba(0.88)}; }
@@ -269,7 +283,8 @@ private fun cardHtml(cardId: String, card: Card, remarks: Map<String, String>): 
             "<span class=\"lbl\">Your remark</span>${esc(note).replace("\n", "<br>")}</button>"
     }
 
-    return "<section><h2>${card.titleHtml}</h2><div class=\"body\">${card.bodyHtml}</div>" +
+    val tag = if (card.pyq == 0) "<span class=\"tag\">syllabus</span>" else ""
+    return "<section><h2>${card.titleHtml}$tag</h2><div class=\"body\">${card.bodyHtml}</div>" +
         formulas + pitfall + "<div class=\"rem\" id=\"rem:$cardId\">$remark</div></section>"
 }
 
