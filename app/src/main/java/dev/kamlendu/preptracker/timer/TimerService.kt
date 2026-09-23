@@ -1,5 +1,6 @@
 package dev.kamlendu.preptracker.timer
 
+import android.app.KeyguardManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -22,6 +23,7 @@ import dev.kamlendu.preptracker.R
 import dev.kamlendu.preptracker.data.StudyActivity
 import dev.kamlendu.preptracker.sync.SyncEngine
 import dev.kamlendu.preptracker.widget.WidgetUpdater
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -49,6 +51,9 @@ class TimerService : LifecycleService() {
         const val ACTION_RESUME_LOGGED = "dev.kamlendu.preptracker.RESUME_LOGGED"
         const val EXTRA_ACTIVITY = "activity"
         const val EXTRA_SESSION_ID = "session_id"
+
+        /** How long to wait after an unlock before deciding the clock was not what came back. */
+        private const val RETURN_GRACE_MS = 1_200L
 
         private const val CHANNEL_ID = "study_timer"
         private const val NOTIFICATION_ID = 1001
@@ -85,16 +90,58 @@ class TimerService : LifecycleService() {
     }
 
     /**
-     * Locking the phone means the sitting is over for now — pressing power is the most natural
-     * "I'm stepping away" gesture there is, and counting a dark phone as study time would inflate
-     * the very number the app exists to report honestly.
+     * True when the phone was locked while the stopwatch face was the thing on screen.
+     *
+     * That is the case the clock keeps running through — the phone is face down beside a book.
+     * What it cannot know yet is whether the next unlock returns to the clock or goes somewhere
+     * else, so the flag is held until the phone is unlocked and then answered.
      */
-    private val screenOffReceiver = object : BroadcastReceiver() {
+    private var lockedFromFace = false
+
+    /** Pending "did they come back to the clock?" check, cancelled if the screen locks again. */
+    private var returnCheck: Job? = null
+
+    /**
+     * Locking the phone no longer stops the sitting; unlocking into something else does.
+     *
+     * Pressing power used to pause, on the reasoning that a dark phone is not being studied at.
+     * The opposite is more often true: the phone goes dark precisely when attention moves to a
+     * book, and pausing there under-counted real work. So the screen going off is left alone, and
+     * the judgement is deferred to the moment the phone is unlocked — if the clock is what comes
+     * back up, the sitting continues; if it is WhatsApp, it stops.
+     *
+     * The grace period is there because the unlock and the face's own resume race each other by a
+     * few hundred milliseconds; without it, unlocking straight back into the clock would pause it.
+     */
+    private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action != Intent.ACTION_SCREEN_OFF) return
-            if (!TimerEngine.state.value.running) return
-            TimerEngine.pause()
-            startForeground(buildNotification())
+            when (intent?.action) {
+                Intent.ACTION_SCREEN_OFF -> {
+                    returnCheck?.cancel()
+                    lockedFromFace = TimerFace.visible && TimerEngine.state.value.running
+                }
+                // With no keyguard set, the screen coming on *is* the unlock.
+                Intent.ACTION_SCREEN_ON -> {
+                    val keyguard = getSystemService(KeyguardManager::class.java)
+                    if (keyguard?.isKeyguardLocked != true) scheduleReturnCheck()
+                }
+                Intent.ACTION_USER_PRESENT -> scheduleReturnCheck()
+            }
+        }
+    }
+
+    private fun scheduleReturnCheck() {
+        // Only armed by a lock that happened on the clock face. A session resumed from the
+        // notification is a deliberate "keep counting while I use the phone" and stays exempt.
+        if (!lockedFromFace) return
+        returnCheck?.cancel()
+        returnCheck = lifecycleScope.launch {
+            delay(RETURN_GRACE_MS)
+            lockedFromFace = false
+            if (TimerEngine.state.value.running && !TimerFace.visible) {
+                TimerEngine.pause()
+                startForeground(buildNotification())
+            }
         }
     }
 
@@ -123,8 +170,12 @@ class TimerService : LifecycleService() {
         createChannel()
         ContextCompat.registerReceiver(
             this,
-            screenOffReceiver,
-            IntentFilter(Intent.ACTION_SCREEN_OFF),
+            screenReceiver,
+            IntentFilter().apply {
+                addAction(Intent.ACTION_SCREEN_OFF)
+                addAction(Intent.ACTION_SCREEN_ON)
+                addAction(Intent.ACTION_USER_PRESENT)
+            },
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
         val listener = callListener
@@ -160,7 +211,8 @@ class TimerService : LifecycleService() {
     }
 
     override fun onDestroy() {
-        runCatching { unregisterReceiver(screenOffReceiver) }
+        returnCheck?.cancel()
+        runCatching { unregisterReceiver(screenReceiver) }
         val listener = callListener
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && listener != null) {
             val audio = getSystemService(AUDIO_SERVICE) as AudioManager
@@ -188,6 +240,9 @@ class TimerService : LifecycleService() {
             }
             ACTION_RESUME -> {
                 TimerEngine.resume()
+                // An explicit resume clears any pending judgement from the last lock.
+                returnCheck?.cancel()
+                lockedFromFace = false
                 // Focus mode belongs to the sitting, not to the start of it: if Do Not Disturb was
                 // turned off during the break — or by something else entirely — picking the clock
                 // back up should silence the phone again.
@@ -295,6 +350,9 @@ class TimerService : LifecycleService() {
             .setContentTitle(if (state.running) "Studying — $label" else "Paused — $label")
             .setContentIntent(content)
             .setOngoing(true)
+            // Keeps the running time and the two controls on the lock screen: pressing power
+            // should show how long you have been at it and let you pause or log without unlocking.
+            // Opening the app from here still goes through the keyguard.
             .setSilent(true)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -338,6 +396,11 @@ class TimerService : LifecycleService() {
             setShowBadge(false)
             enableVibration(false)
             setSound(null, null)
+            // So the clock and its controls are readable on the lock screen rather than collapsed
+            // to "1 notification". Android only applies this when the channel is first created —
+            // on a device that already has it, the notification's own VISIBILITY_PUBLIC is what
+            // carries, which is why both are set.
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
         (getSystemService(NOTIFICATION_SERVICE) as NotificationManager)
             .createNotificationChannel(channel)

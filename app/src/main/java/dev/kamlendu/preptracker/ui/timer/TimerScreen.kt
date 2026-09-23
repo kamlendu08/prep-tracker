@@ -3,6 +3,7 @@ package dev.kamlendu.preptracker.ui.timer
 import android.app.Activity
 import android.content.pm.ActivityInfo
 import android.view.WindowManager
+import android.os.PowerManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -85,6 +86,7 @@ import dev.kamlendu.preptracker.data.StudyActivity
 import dev.kamlendu.preptracker.data.StudySession
 import dev.kamlendu.preptracker.data.todayKey
 import dev.kamlendu.preptracker.timer.TimerEngine
+import dev.kamlendu.preptracker.timer.TimerFace
 import dev.kamlendu.preptracker.timer.TimerService
 import dev.kamlendu.preptracker.timer.formatDuration
 import dev.kamlendu.preptracker.timer.formatHoursMinutes
@@ -661,30 +663,53 @@ private fun KeepScreenOn(enabled: Boolean) {
 }
 
 /**
- * Stops the clock the moment the face is no longer what you are looking at.
+ * Stops the clock when you leave the face **with the screen still on**.
  *
- * Leaving the screen — home button, another app, another tab — means you are doing something other
- * than studying, and a clock that keeps running through it would report time nobody spent. Two
- * triggers because they catch different exits: the lifecycle event covers leaving the app, and
- * `onDispose` covers switching tabs inside it, where the activity never pauses.
+ * Home button, another app, another tab: you are doing something other than studying, and a clock
+ * that kept running would report time nobody spent. Two triggers because they catch different
+ * exits — the lifecycle event covers leaving the app, `onDispose` covers switching tabs inside it,
+ * where the activity never pauses.
  *
- * Resuming from the notification is deliberately exempt: that is an explicit instruction to keep
- * counting while the phone is used for something else, which is the studying-from-a-book case.
+ * Locking the phone is deliberately **not** one of them any more. Pressing power backgrounds the
+ * app exactly like opening another app does, so the two are told apart by whether the screen is
+ * still awake: a dark screen is a lock, and reading from paper with the phone locked beside you is
+ * studying. [TimerService] handles what happens when it is unlocked again.
+ *
+ * Resuming from the notification stays exempt: that is an explicit instruction to keep counting
+ * while the phone is used for something else.
  */
 @Composable
 private fun PauseWhenLeaving() {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
     DisposableEffect(owner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_PAUSE && TimerEngine.state.value.running) {
+        val power = context.getSystemService(PowerManager::class.java)
+        // Defaults to true if the service is somehow unavailable, which keeps the old, safer
+        // behaviour of pausing rather than counting time that was not studied.
+        fun screenStillOn() = power?.isInteractive ?: true
+
+        fun leave() {
+            TimerFace.visible = false
+            if (TimerEngine.state.value.running && screenStillOn()) {
                 runCatching { TimerService.pause(context) }
+            }
+        }
+
+        // Set here, not only on ON_RESUME: the face can enter composition while the activity is
+        // already resumed, in which case no lifecycle event follows.
+        TimerFace.visible = true
+
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> TimerFace.visible = true
+                Lifecycle.Event.ON_PAUSE -> leave()
+                else -> Unit
             }
         }
         owner.lifecycle.addObserver(observer)
         onDispose {
             owner.lifecycle.removeObserver(observer)
-            if (TimerEngine.state.value.running) runCatching { TimerService.pause(context) }
+            leave()
         }
     }
 }

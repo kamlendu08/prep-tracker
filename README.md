@@ -23,9 +23,21 @@ which on an OLED panel at a desk at 3am glares exactly the way white does. Tap
 anywhere to pause, tap again to resume, "Stop & log" banks it against today.
 
 The clock **pauses itself whenever you stop looking at it**: home button, another app, another tab,
-the lock button, or an incoming call. The one exception is resuming from the notification, which is
-an explicit instruction to keep counting while the phone is used for something else — the
-studying-from-a-paper-book case.
+or an incoming call. **Locking the phone is deliberately not one of them** — the screen usually
+goes dark precisely when attention moves to a book, and pausing there under-counted real work. So
+pressing power keeps the clock running, and the judgement is deferred to the next unlock: come back
+to the clock and the sitting continues, unlock into something else and it stops. Pressing power and
+opening another app look identical to the app lifecycle, so the two are told apart by whether the
+screen is still awake.
+
+The one exception is resuming from the notification, which is an explicit instruction to keep
+counting while the phone is used for something else — the studying-from-a-paper-book case.
+
+The notification carries a live count and Pause / Stop & log, and is `VISIBILITY_PUBLIC`, so both
+are usable from the lock screen without unlocking; opening the app from it still goes through the
+keyguard. Whether it is *drawn* on the lock screen is the phone's call — One UI's
+`lockscreen_minimizing_notification` collapses lock-screen notifications to icons, and on the test
+device that setting is on.
 
 While a sitting runs: the screen stays awake, Do Not Disturb goes on with **calls still allowed
 through**, and the session lives in a foreground service with pause/stop controls in the shade.
