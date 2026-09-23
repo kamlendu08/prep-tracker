@@ -33,11 +33,17 @@ screen is still awake.
 The one exception is resuming from the notification, which is an explicit instruction to keep
 counting while the phone is used for something else — the studying-from-a-paper-book case.
 
-The notification carries a live count and Pause / Stop & log, and is `VISIBILITY_PUBLIC`, so both
-are usable from the lock screen without unlocking; opening the app from it still goes through the
-keyguard. Whether it is *drawn* on the lock screen is the phone's call — One UI's
-`lockscreen_minimizing_notification` collapses lock-screen notifications to icons, and on the test
-device that setting is on.
+**Waking the phone brings back the clock, not the lock screen.** While a sitting is in progress the
+stopwatch face declares `setShowWhenLocked(true)`, so pressing power shows the time you were
+looking at — and in the orientation the phone is actually being held, which a portrait-locked lock
+screen cannot do. Tap to pause and **Stop & log** both work from there without unlocking. Nothing
+else does: the face is the only screen with no navigation bar, and pressing home from it lands on
+the keyguard. When the sitting ends the face leaves composition, `setShowWhenLocked` goes back to
+false, and the lock screen takes over again.
+
+The notification is the fallback and carries the same live count and controls with
+`VISIBILITY_PUBLIC`. Whether it is *drawn* on the lock screen is the phone's call — One UI's
+`lockscreen_minimizing_notification` collapses lock-screen notifications to icons.
 
 While a sitting runs: the screen stays awake, Do Not Disturb goes on with **calls still allowed
 through**, and the session lives in a foreground service with pause/stop controls in the shade.

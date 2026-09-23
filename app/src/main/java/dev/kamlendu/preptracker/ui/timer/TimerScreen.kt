@@ -455,6 +455,7 @@ private fun StopwatchFace(
     KeepScreenOn(enabled = settings.keepScreenOn)
     ImmersiveMode()
     RotateWithTheDevice()
+    ShowOverLockScreen()
     PauseWhenLeaving()
 
     val text = formatDuration(elapsed)
@@ -711,6 +712,32 @@ private fun PauseWhenLeaving() {
             owner.lifecycle.removeObserver(observer)
             leave()
         }
+    }
+}
+
+/**
+ * Puts the stopwatch face on top of the lock screen while a sitting is in progress.
+ *
+ * Pressing power should bring back the clock you were looking at, not a lock screen you have to
+ * get past first — the whole point of glancing at it is that the glance is cheap. A notification
+ * cannot do this: the phone decides whether to draw it, and One UI's minimised lock-screen
+ * notifications collapse it to an icon.
+ *
+ * Only the face is exposed, never the rest of the app: this runs inside [StopwatchFace], which is
+ * composed only while a sitting exists, and that is also exactly when the navigation bar is
+ * hidden. Tap to pause, Stop & log to finish — anything further still goes through the keyguard.
+ * When the sitting ends the face leaves composition and the lock screen takes over again.
+ *
+ * It also fixes the orientation: the face asks for sensor orientation, so what comes up matches
+ * how the phone is actually being held, which a portrait-locked lock screen cannot do.
+ */
+@Composable
+private fun ShowOverLockScreen() {
+    val view = LocalView.current
+    DisposableEffect(Unit) {
+        val activity = view.context as? Activity
+        activity?.setShowWhenLocked(true)
+        onDispose { activity?.setShowWhenLocked(false) }
     }
 }
 
