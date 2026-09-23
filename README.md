@@ -33,6 +33,12 @@ screen is still awake.
 The one exception is resuming from the notification, which is an explicit instruction to keep
 counting while the phone is used for something else — the studying-from-a-paper-book case.
 
+**The screen is only held awake while the phone is unlocked.** Over the lock screen the clock is
+there for a glance, so it times out the way the rest of the lock screen does — holding it awake
+would leave the face burning on a phone that was deliberately put down. Unlock and it stays awake
+as before. The lock state is tracked from `ACTION_USER_PRESENT`, because a screen already resumed
+over the keyguard gets no lifecycle event when the phone is unlocked.
+
 **Waking the phone brings back the clock, not the lock screen.** While a sitting is in progress the
 stopwatch face declares `setShowWhenLocked(true)`, so pressing power shows the time you were
 looking at — and in the orientation the phone is actually being held, which a portrait-locked lock

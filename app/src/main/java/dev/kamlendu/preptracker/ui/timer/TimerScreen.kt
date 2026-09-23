@@ -1,19 +1,21 @@
 package dev.kamlendu.preptracker.ui.timer
 
 import android.app.Activity
+import android.app.KeyguardManager
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ActivityInfo
-import android.view.WindowManager
 import android.os.PowerManager
+import android.view.WindowManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -28,11 +30,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -74,6 +79,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -91,13 +97,13 @@ import dev.kamlendu.preptracker.timer.TimerService
 import dev.kamlendu.preptracker.timer.formatDuration
 import dev.kamlendu.preptracker.timer.formatHoursMinutes
 import dev.kamlendu.preptracker.ui.theme.ActivityColors
-import dev.kamlendu.preptracker.ui.timeOfDay
 import dev.kamlendu.preptracker.ui.theme.TimerPalette
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import dev.kamlendu.preptracker.ui.timeOfDay
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlin.math.min
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun TimerScreen(contentPadding: PaddingValues) {
@@ -656,11 +662,62 @@ private fun BoxScope.FirstRunHint(running: Boolean, elapsed: Long, hintColor: Co
 @Composable
 private fun KeepScreenOn(enabled: Boolean) {
     val view = LocalView.current
-    DisposableEffect(enabled) {
+    // Never while the phone is locked. The face shows over the lock screen so the time can be
+    // checked at a glance, and a glance is all it is meant to be — holding the screen awake there
+    // would leave the clock burning on a phone that was deliberately put down. Locked, it simply
+    // times out the way the rest of the lock screen does; unlocked, it stays awake as before.
+    val locked = rememberKeyguardLocked()
+    DisposableEffect(enabled, locked) {
         val window = (view.context as? Activity)?.window
-        if (enabled) window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        if (enabled && !locked) {
+            window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
         onDispose { window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
     }
+}
+
+/**
+ * Whether the keyguard is up, kept current without polling.
+ *
+ * The lifecycle cannot answer this: the face is already resumed over the lock screen, so unlocking
+ * produces no lifecycle event at all. `ACTION_USER_PRESENT` is the one signal that does arrive,
+ * and the screen broadcasts cover locking again.
+ */
+@Composable
+private fun rememberKeyguardLocked(): Boolean {
+    val context = LocalContext.current
+    val keyguard = remember(context) { context.getSystemService(KeyguardManager::class.java) }
+    var locked by remember { mutableStateOf(keyguard?.isKeyguardLocked == true) }
+
+    DisposableEffect(context, keyguard) {
+        fun refresh() { locked = keyguard?.isKeyguardLocked == true }
+
+        // Broadcasts, not KeyguardManager.addKeyguardLockedStateListener: that API reads like the
+        // right tool and needs SUBSCRIBE_TO_KEYGUARD_LOCKED_STATE, which this app has no other
+        // reason to hold. ACTION_USER_PRESENT is the unlock, and that is the transition that
+        // matters — miss it and the screen would start timing out while the clock is being watched.
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(c: Context?, intent: Intent?) = refresh()
+        }
+        runCatching {
+            ContextCompat.registerReceiver(
+                context,
+                receiver,
+                IntentFilter().apply {
+                    addAction(Intent.ACTION_USER_PRESENT)
+                    addAction(Intent.ACTION_SCREEN_ON)
+                    addAction(Intent.ACTION_SCREEN_OFF)
+                },
+                ContextCompat.RECEIVER_NOT_EXPORTED,
+            )
+        }
+
+        refresh()
+        onDispose { runCatching { context.unregisterReceiver(receiver) } }
+    }
+    return locked
 }
 
 /**
